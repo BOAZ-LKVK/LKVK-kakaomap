@@ -1,6 +1,9 @@
+from unicodedata import category
+
 from playwright.sync_api import sync_playwright
 import json
 import re
+from items.Review import Review
 
 # 리스트를 사용하여 모든 응답을 저장
 responses = []
@@ -10,6 +13,42 @@ id_list = []
 def handle_response(response):
     if "clickpoi-map.kakao.com/click/v1/poi.json" in response.url:
         responses.append(response)
+
+def get_review(_id_str, _page, _shop_name, _review_cnt):
+    if _review_cnt > 3:
+        while _page.locator("div.evaluation_review a.link_more.link_unfold").count() == 0:
+            _page.click("div.evaluation_review a.link_more")
+            _page.wait_for_timeout(500)
+
+    evaluation_items = _page.locator('div.evaluation_review ul.list_evaluation li')
+    review_list = []
+    for evaluation in evaluation_items.element_handles():
+        if evaluation.query_selector("div.unit_info div.inner_user span.txt_username") is None:
+            continue
+
+        _username = evaluation.query_selector("div.unit_info div.inner_user span.txt_username").inner_text()
+        _star_css_str = evaluation.query_selector("div.star_info span.ico_star.inner_star").get_attribute("style")
+        _star = int(_star_css_str.replace('width:', '').replace('%;', '').strip()) / 20
+        _comment = evaluation.query_selector("div.comment_info p.txt_comment span").inner_text()
+        _time_write = evaluation.query_selector("div.unit_info span.time_write").inner_text()
+
+        review = Review(
+            id_str=_id_str,
+            shop_name=_shop_name,
+            username=_username,
+            star=_star,
+            time=_time_write,
+            comment=_comment
+        )
+        review_list.append(review)
+        print(review)
+        print("-----" * 10)
+
+    return review_list
+
+
+def get_menu(_id_str, _page, _shop_name):
+    pass
 
 if __name__ == "__main__":
     with sync_playwright() as pw:
@@ -54,30 +93,19 @@ if __name__ == "__main__":
             detail_page = context.new_page()
             detail_page.goto(detail_url)
             detail_page.wait_for_load_state("networkidle")
-            review_cnt_element = detail_page.query_selector("div#mArticle strong.total_evaluation span.color_b")
-            if review_cnt_element is None:
-                continue
-            review_cnt = int(review_cnt_element.inner_text())
-            if review_cnt > 3:
-                while detail_page.locator("div.evaluation_review a.link_more.link_unfold").count() == 0:
-                    detail_page.click("div.evaluation_review a.link_more")
-                    detail_page.wait_for_timeout(500)
 
             title = detail_page.query_selector("div#mArticle div.inner_place h2.tit_location").inner_text()
-            evaluation_items = detail_page.locator('div.evaluation_review ul.list_evaluation li')
-            index = 1
-            for evaluation in evaluation_items.element_handles():
-                if evaluation.query_selector("div.unit_info div.inner_user span.txt_username") is None:
-                    continue
-                detail_item['title'] = title
-                detail_item['index'] = index
-                detail_item['total_cnt'] = review_cnt
-                detail_item['username'] = evaluation.query_selector("div.unit_info div.inner_user span.txt_username").inner_text()
-                detail_item['star'] = evaluation.query_selector("div.star_info span.ico_star.inner_star").get_attribute("style")
-                detail_item['comment'] = evaluation.query_selector("div.comment_info p.txt_comment span").inner_text()
-                index += 1
-
-                print(detail_item)
-                print("-----" * 10)
+            address = detail_page.query_selector("div#mArticle div.details_placeinfo div.placeinfo_default div.location_detail span.txt_address")
+            contact = detail_page.query_selector("div#mArticle div.details_placeinfo div.placeinfo_default.placeinfo_contact div.location_detail span.txt_contact")
+            star = detail_page.query_selector("div#mArticle div.place_details div.location_evaluation span.color_b")
+            open_time_list = detail_page.query_selector_all("div#mArticle div.details_placeinfo div.placeinfo_default div.location_detail.openhour_wrap div.location_present span.txt_operation")
+            category = detail_page.query_selector("div#mArticle div.place_details div.location_evaluation span.txt_location")
+            # price =
+            description = ""
+            source = "kakao map"
+            review_cnt_element = detail_page.query_selector("div#mArticle strong.total_evaluation span.color_b")
+            if review_cnt_element:
+                review_cnt = int(review_cnt_element.inner_text())
+                get_review(id_str, detail_page, title, review_cnt)
 
             detail_page.close()
