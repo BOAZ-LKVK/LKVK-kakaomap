@@ -1,7 +1,7 @@
 from playwright.sync_api import sync_playwright
 import json
 import re
-
+import csv
 from items.Menu import Menu
 from items.Review import Review
 from items.Shop import Shop
@@ -32,10 +32,16 @@ def get_review(_id_str, _page, _shop_name, _review_cnt):
             time=_time_write,
             comment=_comment
         )
-        review_list.append(review)
-        print(review)
-        print("-----" * 10)
-
+        with open('./output_data/review.csv', 'a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([
+                review.id_str,
+                review.shop_name,
+                review.username,
+                review.star,
+                review.time,
+                review.comment
+            ])
     return review_list
 
 
@@ -61,17 +67,25 @@ def get_menu(_id_str, _page, _shop_name):
 
         menu_list.append(menu)
         menu_name_list.append(_name)
-        print(menu)
-        print("-----" * 10)
-
+        with open('./output_data/menu.csv', 'a', newline='',encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([menu.id_str,
+                menu.shop_name,
+                menu.name,
+                menu.price,
+                menu.url])
     return menu_list, menu_name_list
 if __name__ == "__main__":
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         context = browser.new_context(viewport={"width": 1920, "height": 1080})
         detail_item = {}
-        for id_str in set(id_list):
-            detail_url = "https://place.map.kakao.com/" + id_str
+        with open('id_list.csv', 'r') as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                id_list = list(map(int, row))
+        for id_str in id_list:
+            detail_url = "https://place.map.kakao.com/" + str(id_str)
             detail_page = context.new_page()
             detail_page.goto(detail_url)
             detail_page.wait_for_load_state("networkidle")
@@ -122,17 +136,18 @@ if __name__ == "__main__":
                 menu_list=menu_name_list,
                 source="kakao map",
             )
-            print("shop----------")
-            print(shop)
-            print("-----" * 10)
-            print("menu-----------")
-            for x in menu_list:
-                print(x)
-            print("-----" * 10)
-            print("review-----------")
-            for x in review_list:
-                print(x)
-            print("-----" * 10)
-
-
+            with open('./output_data/shop.csv', 'a', newline='',encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([
+                        shop.id_str,
+                        shop.name,
+                        shop.address,
+                        shop.contact,
+                        shop.star,
+                        shop.review_cnt,
+                        shop.time,
+                        shop.category,
+                        json.dumps(shop.menu_list),  # 메뉴 리스트를 쉼표로 구분하여 하나의 문자열로 변환
+                        shop.source
+                    ])
             detail_page.close()
