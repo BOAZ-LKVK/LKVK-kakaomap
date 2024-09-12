@@ -85,69 +85,74 @@ if __name__ == "__main__":
             for row in reader:
                 id_list = list(map(int, row))
         for id_str in id_list:
-            detail_url = "https://place.map.kakao.com/" + str(id_str)
-            detail_page = context.new_page()
-            detail_page.goto(detail_url)
-            detail_page.wait_for_load_state("networkidle")
+            try:
+                detail_url = "https://place.map.kakao.com/" + str(id_str)
+                detail_page = context.new_page()
+                detail_page.goto(detail_url)
+                detail_page.wait_for_load_state("networkidle")
 
-            title_element = detail_page.query_selector("div#mArticle div.inner_place h2.tit_location")
-            title = "" if  title_element is None else title_element.inner_text()
+                title_element = detail_page.query_selector("div#mArticle div.inner_place h2.tit_location")
+                title = "" if  title_element is None else title_element.inner_text()
 
-            address_element = detail_page.query_selector("div#mArticle div.details_placeinfo div.placeinfo_default div.location_detail span.txt_address")
-            address = "" if address_element is None else address_element.inner_text()
+                address_element = detail_page.query_selector("div#mArticle div.details_placeinfo div.placeinfo_default div.location_detail span.txt_address")
+                address = "" if address_element is None else address_element.inner_text()
 
-            contact_element = detail_page.query_selector("div#mArticle div.details_placeinfo div.placeinfo_default.placeinfo_contact div.location_detail span.txt_contact")
-            contact = "" if contact_element is None else contact_element.inner_text()
+                contact_element = detail_page.query_selector("div#mArticle div.details_placeinfo div.placeinfo_default.placeinfo_contact div.location_detail span.txt_contact")
+                contact = "" if contact_element is None else contact_element.inner_text()
 
-            star_element = detail_page.query_selector("div#mArticle div.place_details div.location_evaluation span.color_b")
-            star = "" if star_element is None else star_element.inner_text()
+                star_element = detail_page.query_selector("div#mArticle div.place_details div.location_evaluation span.color_b")
+                star = "" if star_element is None else star_element.inner_text()
 
-            category_element = detail_page.query_selector("div#mArticle div.place_details div.location_evaluation span.txt_location")
-            category = "" if category_element is None else category_element.inner_text()[4:]
+                category_element = detail_page.query_selector("div#mArticle div.place_details div.location_evaluation span.txt_location")
+                category = "" if category_element is None else category_element.inner_text()[4:]
 
-            review_cnt_element = detail_page.query_selector("div#mArticle strong.total_evaluation span.color_b")
-            open_time_list = detail_page.query_selector_all(
-                "div#mArticle div.details_placeinfo div.placeinfo_default div.location_detail.openhour_wrap div.location_present span.txt_operation")
-            open_time = ""
-            for open_time_element in open_time_list:
-                open_time += open_time_element.inner_text()
+                review_cnt_element = detail_page.query_selector("div#mArticle strong.total_evaluation span.color_b")
+                open_time_list = detail_page.query_selector_all(
+                    "div#mArticle div.details_placeinfo div.placeinfo_default div.location_detail.openhour_wrap div.location_present span.txt_operation")
+                open_time = ""
+                for open_time_element in open_time_list:
+                    open_time += open_time_element.inner_text()
 
-            review_cnt = 0
-            review_list = []
-            if review_cnt_element:
-                review_cnt = int(review_cnt_element.inner_text())
-                review_list = get_review(id_str, detail_page, title, review_cnt)
+                review_cnt = 0
+                review_list = []
+                if review_cnt_element:
+                    review_cnt = int(review_cnt_element.inner_text())
+                    review_list = get_review(id_str, detail_page, title, review_cnt)
 
-            menu_list = []
-            menu_name_list = []
-            menu_page = detail_page.query_selector("div#mArticle div.cont_menu")
-            if menu_page:
-                menu_list, menu_name_list = get_menu(id_str, detail_page, title)
+                menu_list = []
+                menu_name_list = []
+                menu_page = detail_page.query_selector("div#mArticle div.cont_menu")
+                if menu_page:
+                    menu_list, menu_name_list = get_menu(id_str, detail_page, title)
 
-            shop = Shop(
-                id_str=id_str,
-                name=title,
-                address=address,
-                contact=contact,
-                star=star,
-                review_cnt=review_cnt,
-                time=open_time,
-                category=category,
-                menu_list=menu_name_list,
-                source="kakao map",
-            )
-            with open('./output_data/shop.csv', 'a', newline='',encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow([
-                        shop.id_str,
-                        shop.name,
-                        shop.address,
-                        shop.contact,
-                        shop.star,
-                        shop.review_cnt,
-                        shop.time,
-                        shop.category,
-                        json.dumps(shop.menu_list),  # 메뉴 리스트를 쉼표로 구분하여 하나의 문자열로 변환
-                        shop.source
-                    ])
-            detail_page.close()
+                shop = Shop(
+                    id_str=id_str,
+                    name=title,
+                    address=address,
+                    contact=contact,
+                    star=star,
+                    review_cnt=review_cnt,
+                    time=open_time,
+                    category=category,
+                    menu_list=menu_name_list,
+                    source="kakao map",
+                )
+                with open('./output_data/shop.csv', 'a', newline='',encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow([
+                            shop.id_str,
+                            shop.name,
+                            shop.address,
+                            shop.contact,
+                            shop.star,
+                            shop.review_cnt,
+                            shop.time,
+                            shop.category,
+                            json.dumps(shop.menu_list),  # 메뉴 리스트를 쉼표로 구분하여 하나의 문자열로 변환
+                            shop.source
+                        ])
+                detail_page.close()
+            except Exception as e:
+                print(e)
+                continue
+            
